@@ -14,7 +14,7 @@ function loadConfig() {
             return JSON.parse(data);
         }
     } catch (e) {}
-    return { siteUrl: 'https://brian-shop.netlify.app' };
+    return { siteUrl: 'https://sprightly-vacherin-f4c7b0.netlify.app' };
 }
 
 function saveConfig(config) {
@@ -34,6 +34,48 @@ const bot = new TelegramBot(TOKEN, {
 console.log('🤖 Бот запущен!');
 console.log('👤 Админ:', ADMIN_ID);
 console.log('🔗 Ссылка:', config.siteUrl);
+
+// ===== ОБРАБОТКА ПЛАТЕЖЕЙ =====
+
+// 1. Обработка pre-checkout (подтверждение перед оплатой)
+bot.on('pre_checkout_query', (query) => {
+    console.log('Pre-checkout query:', query);
+    // Обязательно подтверждаем в течение 10 секунд
+    bot.answerPreCheckoutQuery(query.id, true, {
+        error_message: 'Оплата возможна только через Telegram Stars'
+    });
+});
+
+// 2. Обработка успешной оплаты
+bot.on('successful_payment', (ctx) => {
+    const payment = ctx.message.successful_payment;
+    const chatId = ctx.message.chat.id;
+    const userId = ctx.message.from.id;
+    const username = ctx.message.from.username || 'unknown';
+    
+    console.log('✅ Успешная оплата:', payment);
+    
+    // Получаем данные из payload
+    const payload = payment.invoice_payload;
+    const totalStars = payment.total_amount;
+    
+    // Отправляем подтверждение пользователю
+    bot.sendMessage(chatId, 
+        `✅ Оплата прошла успешно!\n\n` +
+        `💰 Сумма: ${totalStars} ⭐\n` +
+        `🆔 Заказ: ${payload}\n\n` +
+        `Модератор свяжется с вами в ближайшее время.`
+    );
+    
+    // Уведомление админу
+    bot.sendMessage(ADMIN_ID,
+        `💎 ОПЛАЧЕНО STARS!\n\n` +
+        `👤 Пользователь: @${username} (ID: ${userId})\n` +
+        `💰 Сумма: ${totalStars} ⭐\n` +
+        `🆔 Заказ: ${payload}\n` +
+        `📅 Время: ${new Date().toLocaleString()}`
+    );
+});
 
 // ===== /start =====
 bot.onText(/\/start/, (msg) => {
