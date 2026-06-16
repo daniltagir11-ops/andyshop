@@ -5,7 +5,6 @@ const path = require('path');
 const TOKEN = '8886148730:AAHO2oHpBT4g0RpLUXYCu1oSK_m_nyiTnK4';
 const ADMIN_ID = '2105323375';
 
-// Файл для хранения ссылки
 const CONFIG_PATH = path.join(__dirname, 'config.json');
 
 function loadConfig() {
@@ -14,9 +13,7 @@ function loadConfig() {
             const data = fs.readFileSync(CONFIG_PATH, 'utf8');
             return JSON.parse(data);
         }
-    } catch (e) {
-        console.log('Config not found, creating default');
-    }
+    } catch (e) {}
     return { siteUrl: 'https://brian-shop.netlify.app' };
 }
 
@@ -26,44 +23,37 @@ function saveConfig(config) {
 
 let config = loadConfig();
 
-// Создаем бота с правильными настройками
 const bot = new TelegramBot(TOKEN, {
     polling: {
         interval: 300,
         autoStart: true,
-        params: {
-            timeout: 10
-        }
+        params: { timeout: 10 }
     }
 });
 
 console.log('🤖 Бот запущен!');
-console.log(`👤 Админ: ${ADMIN_ID}`);
-console.log(`🔗 Текущая ссылка: ${config.siteUrl}`);
+console.log('👤 Админ:', ADMIN_ID);
+console.log('🔗 Ссылка:', config.siteUrl);
 
-// ===== Команда /start =====
+// ===== /start =====
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
     const firstName = msg.from.first_name || 'Guest';
     
-    const keyboard = {
-        inline_keyboard: [
-            [
-                { text: '🇷🇺 Русский', callback_data: 'lang_ru' },
-                { text: '🇬🇧 English', callback_data: 'lang_en' }
-            ]
-        ]
-    };
-    
     bot.sendMessage(chatId, 
         `👋 Welcome, ${firstName}!\n\n` +
-        `This bot is used for purchasing Telegram Stars, NFT Gifts, and more.\n` +
-        `Choose your language:\n\n` +
-        `👋 Привет, ${firstName}!\n\n` +
-        `Этот бот используется для покупки звезд Telegram, NFT подарков и т.п.\n` +
-        `Выберите язык:`,
-        { reply_markup: keyboard }
-    ).catch(err => console.log('Send error:', err.message));
+        `Choose your language / Выберите язык:`,
+        {
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        { text: '🇷🇺 Русский', callback_data: 'lang_ru' },
+                        { text: '🇬🇧 English', callback_data: 'lang_en' }
+                    ]
+                ]
+            }
+        }
+    );
 });
 
 // ===== Выбор языка =====
@@ -73,61 +63,54 @@ bot.on('callback_query', (callbackQuery) => {
     const url = config.siteUrl;
     
     if (data === 'lang_ru') {
-        const keyboard = {
-            inline_keyboard: [
-                [{ text: '🛒 Открыть магазин', url: url }],
-                [{ text: '📞 Поддержка', url: 'https://t.me/Br1anRew' }]
-            ]
-        };
-        
         bot.sendMessage(chatId,
             `✅ Язык выбран: Русский\n\n` +
             `🏪 <b>Brian Shop</b>\n` +
-            `Покупайте звезды, NFT подарки, аккаунты и многое другое!\n\n` +
+            `Покупайте звезды, NFT подарки, аккаунты!\n\n` +
             `Нажмите кнопку ниже, чтобы открыть магазин.`,
             { 
                 parse_mode: 'HTML',
-                reply_markup: keyboard 
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '🛒 Открыть магазин', url: url }],
+                        [{ text: '📞 Поддержка', url: 'https://t.me/Br1anRew' }]
+                    ]
+                }
             }
-        ).catch(err => console.log('Send error:', err.message));
-        
-        bot.answerCallbackQuery(callbackQuery.id, { text: '🇷🇺 Русский выбран' });
+        );
+        bot.answerCallbackQuery(callbackQuery.id, { text: '🇷🇺 Русский' });
         
     } else if (data === 'lang_en') {
-        const keyboard = {
-            inline_keyboard: [
-                [{ text: '🛒 Open Store', url: url }],
-                [{ text: '📞 Support', url: 'https://t.me/Br1anRew' }]
-            ]
-        };
-        
         bot.sendMessage(chatId,
             `✅ Language selected: English\n\n` +
             `🏪 <b>Brian Shop</b>\n` +
-            `Buy Stars, NFT Gifts, accounts and more!\n\n` +
+            `Buy Stars, NFT Gifts, accounts!\n\n` +
             `Click the button below to open the store.`,
             { 
                 parse_mode: 'HTML',
-                reply_markup: keyboard 
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '🛒 Open Store', url: url }],
+                        [{ text: '📞 Support', url: 'https://t.me/Br1anRew' }]
+                    ]
+                }
             }
-        ).catch(err => console.log('Send error:', err.message));
-        
-        bot.answerCallbackQuery(callbackQuery.id, { text: '🇬🇧 English selected' });
+        );
+        bot.answerCallbackQuery(callbackQuery.id, { text: '🇬🇧 English' });
     }
 });
 
-// ===== Команда /editurl (только для админа) =====
+// ===== /editurl =====
 bot.onText(/\/editurl (.+)/, (msg, match) => {
     const chatId = msg.chat.id;
     const userId = msg.from.id.toString();
     
     if (userId !== ADMIN_ID) {
-        bot.sendMessage(chatId, '❌ У вас нет прав для этой команды.');
+        bot.sendMessage(chatId, '❌ Нет прав.');
         return;
     }
     
     const newUrl = match[1].trim();
-    
     if (!newUrl.startsWith('http://') && !newUrl.startsWith('https://')) {
         bot.sendMessage(chatId, '❌ URL должен начинаться с http:// или https://');
         return;
@@ -135,49 +118,26 @@ bot.onText(/\/editurl (.+)/, (msg, match) => {
     
     config.siteUrl = newUrl;
     saveConfig(config);
-    
-    bot.sendMessage(chatId, `✅ Ссылка обновлена!\nНовая ссылка: ${newUrl}`);
+    bot.sendMessage(chatId, `✅ Ссылка обновлена!\n${newUrl}`);
 });
 
-// ===== Команда /url =====
+// ===== /url =====
 bot.onText(/\/url/, (msg) => {
     const chatId = msg.chat.id;
     const userId = msg.from.id.toString();
-    
     if (userId !== ADMIN_ID) {
-        bot.sendMessage(chatId, '❌ У вас нет прав.');
+        bot.sendMessage(chatId, '❌ Нет прав.');
         return;
     }
-    
     bot.sendMessage(chatId, `🔗 Текущая ссылка: ${config.siteUrl}`);
 });
 
-// ===== Обработка ошибок =====
+// ===== Ошибки =====
 bot.on('polling_error', (error) => {
     console.log('Polling error:', error.message);
 });
 
-// ===== Обработка неизвестных команд =====
-bot.on('message', (msg) => {
-    if (msg.text && msg.text.startsWith('/') && !msg.text.startsWith('/start') && !msg.text.startsWith('/editurl') && !msg.text.startsWith('/url')) {
-        const chatId = msg.chat.id;
-        bot.sendMessage(chatId, 
-            `❓ Неизвестная команда.\n\n` +
-            `Доступные команды:\n` +
-            `/start — Начать\n` +
-            `/editurl <ссылка> — Изменить ссылку (админ)\n` +
-            `/url — Показать текущую ссылку (админ)`
-        );
-    }
-});
-
-// Обработка завершения процесса
 process.on('SIGINT', () => {
-    console.log('Bot stopping...');
     bot.stopPolling();
     process.exit(0);
-});
-
-process.on('uncaughtException', (err) => {
-    console.log('Uncaught Exception:', err);
 });
